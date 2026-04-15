@@ -196,6 +196,18 @@ app.post('/api/surat-jalan', (req, res) => {
                 }
             }
             no_surat_jalan = `${String(nextNum).padStart(3, '0')} ${suffix}`;
+        } else {
+            // Manual number entered — check if it already exists
+            const checkResult = await new Promise((resolve) => {
+                db.get('SELECT id FROM surat_jalan WHERE no_surat_jalan = ?', [no_surat_jalan.trim()], (err, existing) => {
+                    resolve({ err, existing });
+                });
+            });
+            if (checkResult.err) return res.status(500).json({ error: checkResult.err.message });
+            if (checkResult.existing) {
+                return res.status(400).json({ error: `No. Surat Jalan "${no_surat_jalan.trim()}" sudah ada di database. Gunakan nomor yang berbeda.` });
+            }
+            no_surat_jalan = no_surat_jalan.trim();
         }
 
         db.serialize(() => {
