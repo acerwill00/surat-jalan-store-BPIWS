@@ -180,13 +180,22 @@ app.post('/api/surat-jalan', (req, res) => {
     // Suffix format for BAUER
     const suffix = `/${mm}/BPI/${yyyy}`;
 
-    db.get('SELECT COUNT(*) as count FROM surat_jalan WHERE no_surat_jalan LIKE ?', [`%${suffix}`], (err, row) => {
+    db.get('SELECT no_surat_jalan FROM surat_jalan WHERE no_surat_jalan LIKE ? ORDER BY id DESC LIMIT 1', [`%${suffix}`], (err, row) => {
         if (err) return res.status(500).json({ error: err.message });
         
         let no_surat_jalan = manual_no;
         if (!no_surat_jalan || no_surat_jalan.trim() === '') {
-            const count = row.count + 1;
-            no_surat_jalan = `${String(count).padStart(3, '0')} ${suffix}`;
+            let nextNum = 1;
+            if (row && row.no_surat_jalan) {
+                const parts = row.no_surat_jalan.split(' ');
+                if (parts.length > 0) {
+                    const lastNum = parseInt(parts[0], 10);
+                    if (!isNaN(lastNum)) {
+                        nextNum = lastNum + 1;
+                    }
+                }
+            }
+            no_surat_jalan = `${String(nextNum).padStart(3, '0')} ${suffix}`;
         }
 
         db.serialize(() => {
