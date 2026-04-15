@@ -180,7 +180,7 @@ app.post('/api/surat-jalan', (req, res) => {
     // Suffix format for BAUER
     const suffix = `/${mm}/BPI/${yyyy}`;
 
-    db.get('SELECT no_surat_jalan FROM surat_jalan WHERE no_surat_jalan LIKE ? ORDER BY id DESC LIMIT 1', [`%${suffix}`], (err, row) => {
+    db.get('SELECT no_surat_jalan FROM surat_jalan WHERE no_surat_jalan LIKE ? ORDER BY CAST(no_surat_jalan AS INTEGER) DESC LIMIT 1', [`%${suffix}`], (err, row) => {
         if (err) return res.status(500).json({ error: err.message });
         
         let no_surat_jalan = manual_no;
