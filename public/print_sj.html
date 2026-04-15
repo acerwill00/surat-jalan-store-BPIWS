@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cetak Surat Jalan</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <style>
+        body {
+            background-color: #f7f9fa;
+            font-family: Arial, sans-serif;
+            font-size: 10pt;
+            font-weight: normal;
+        }
+
+        @page {
+            size: A4 portrait;
+            margin: 0;
+        }
+
+        /* ── A4 Page Shell ── */
+        .page-a4 {
+            width: 210mm;
+            min-height: 297mm;
+            padding: 8mm 10mm 8mm 10mm;
+            margin: 10mm auto;
+            background: white;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.12);
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ── Company Header ── */
+        .company-header {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 6mm;
+        }
+        .bauer-logo-img { width: 65px; object-fit: contain; margin-right: 8px; }
+        .company-name   { font-size: 12pt; font-weight: bold; margin-bottom: 1px; }
+        .company-sub    { font-size: 8pt; font-style: italic; font-weight: bold; margin-bottom: 2px; }
+        .company-addr   { font-size: 7pt; line-height: 1.35; }
+
+        /* ── Document Title ── */
+        .doc-title {
+            text-align: center;
+            font-size: 13pt;
+            font-weight: bold;
+            letter-spacing: 1px;
+            margin-bottom: 4mm;
+        }
+
+        /* ── Info Section ── */
+        .info-section {
+            font-size: 9pt;
+            font-weight: bold;
+            margin-bottom: 4mm;
+        }
+        .info-row {
+            display: flex;
+            margin-bottom: 2px;
+        }
+        .info-row-top {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 2px;
+        }
+        .info-label { width: 95px; flex-shrink: 0; }
+        .info-colon { width: 12px; flex-shrink: 0; }
+        .info-value { flex: 1; }
+        .info-no    { font-weight: bold; white-space: nowrap; }
+
+        /* ── Goods Table ── */
+        .table-custom {
+            width: 100%;
+            border-collapse: collapse;
+            border-top: 3px solid #000;
+            font-size: 7.7pt;
+            margin-bottom: 0;
+        }
+        .table-custom thead tr {
+            border-bottom: 2px solid #000;
+        }
+        .table-custom th {
+            padding: 4px 3px;
+            background-color: #eff1f0;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+            text-align: center;
+            font-weight: bold;
+        }
+        .table-custom td {
+            padding: 3px 3px;
+            vertical-align: top;
+        }
+
+        /* ── Spacer pushes footer to bottom ── */
+        .page-spacer { flex: 1; }
+
+        /* ── Footer Info Block ── */
+        .footer-info {
+            display: grid;
+            grid-template-columns: 100px 12px auto;
+            row-gap: 3px;
+            font-size: 9pt;
+            font-weight: bold;
+            text-transform: uppercase;
+            margin-top: 6mm;
+            margin-bottom: 2mm;
+        }
+        .footer-info .note-value { color: #1a56db; font-weight: bold; }
+
+        /* ── Certify Line ── */
+        .certify-line {
+            font-size: 8.5pt;
+            font-style: italic;
+            margin-top: 3mm;
+            margin-bottom: 3mm;
+        }
+
+        /* ── Issued By / Signature row ── */
+        .issued-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            font-size: 9pt;
+            margin-bottom: 2mm;
+        }
+        .issued-right { text-align: center; font-weight: bold; margin-right: 35px; }
+
+        /* ── Signature Boxes ── */
+        .sig-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            text-align: center;
+            font-size: 8.5pt;
+            margin-top: 6mm;
+        }
+        .sig-box { flex: 1; padding: 0 5px; }
+        /* Shared area: same height for all boxes */
+        .sig-sign-area {
+            height: 50px;
+            display: flex;
+            justify-content: center;
+            font-size: 8pt;
+        }
+        /* Dots at bottom, directly above label (Driver, Receiver, Store Keeper) */
+        .sig-sign-area.dashed { align-items: flex-end; }
+        /* Underlined name at bottom (Foreman, WOC) */
+        .sig-sign-area.named {
+            align-items: flex-end;
+            font-weight: bold;
+            text-decoration: underline;
+            text-underline-offset: 3px;
+        }
+        .sig-label { padding-top: 3px; }
+
+        /* ── Doc ref ── */
+        .doc-ref { font-size: 7pt; color: #888; margin-top: 3mm; }
+
+        @media print {
+            body { background-color: transparent; margin: 0; padding: 0; }
+            .page-a4 { width: 210mm; min-height: 297mm; margin: 0; box-shadow: none; }
+            .no-print { display: none !important; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Controls Toolbar (Hidden on Print) -->
+    <div class="no-print bg-dark py-3 px-4 shadow sticky-top d-flex justify-content-between align-items-center">
+        <button onclick="history.back()" class="btn btn-outline-light btn-sm"><i class="bi bi-arrow-left me-1"></i> Kembali</button>
+        <h5 class="text-white mb-0">Preview Surat Jalan (Format BAUER)</h5>
+        <button class="btn btn-primary" id="btnCetak" onclick="window.print()">
+            <i class="bi bi-printer me-2"></i> Cetak Dokumen
+        </button>
+    </div>
+
+    <!-- Print Area -->
+    <div class="page-a4" id="printArea">
+
+        <!-- Company Header -->
+        <div class="company-header">
+            <img src="img/bauer-logo.jpeg" alt="BAUER Logo" class="bauer-logo-img">
+            <div>
+                <div class="company-name">PT. BAUER Pratama Indonesia</div>
+                <div class="company-sub">International Foundation Specialist</div>
+                <div class="company-addr">
+                    <div>Alamanda Tower 19th Floor Jalan TB.Simatupang Kav.23-24 Cilandak Barat Jakarta Selatan 12430 &nbsp; Indonesia</div>
+                    <div>Telp &nbsp; : +62 21 2966 1988 (Hunting) Fax. : +62 21 2966 0188</div>
+                    <div>Workshop : Kp. Cipicung Rt. 18 / Rw. 04 Desa Mekarsari Kec. Cileungsi Kab. Bogor</div>
+                    <div>Telp &nbsp; : +62 21-2923 2795</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Document Title -->
+        <div class="doc-title">DELIVERY / TRANSFER NOTE</div>
+
+        <!-- Info Section -->
+        <div class="info-section">
+            <!-- DATE + No. on same row -->
+            <div class="info-row-top">
+                <div class="d-flex">
+                    <div class="info-label">DATE</div>
+                    <div class="info-colon">:</div>
+                    <div class="info-value" id="lblDate">-</div>
+                </div>
+                <div class="info-no">No. &nbsp;&nbsp; <span id="lblNoSj">...</span></div>
+            </div>
+            <div class="info-row">
+                <div class="info-label">DELIVERY TO</div>
+                <div class="info-colon">:</div>
+                <div class="info-value" id="lblDest">-</div>
+            </div>
+            <div class="info-row">
+                <div class="info-label">ATTN</div>
+                <div class="info-colon">:</div>
+                <div class="info-value" id="lblAttn">-</div>
+            </div>
+            <div class="info-row">
+                <div class="info-label">PHONE</div>
+                <div class="info-colon">:</div>
+                <div class="info-value" id="lblPhoneH">-</div>
+            </div>
+        </div>
+
+        <!-- Goods Table -->
+        <table class="table-custom">
+            <thead>
+                <tr>
+                    <th width="5%">No</th>
+                    <th width="12%">Asset /<br>ID No.</th>
+                    <th width="43%">Description of Goods</th>
+                    <th width="8%">Qty</th>
+                    <th width="8%">Unit</th>
+                    <th width="24%">Remark</th>
+                </tr>
+            </thead>
+            <tbody id="printItemsLine">
+                <!-- JS Populated -->
+            </tbody>
+        </table>
+
+        <!-- Spacer: pushes footer to bottom of A4 -->
+        <div class="page-spacer"></div>
+
+        <!-- Footer Info Block -->
+        <div class="footer-info">
+            <div>NOTE</div><div>:</div><div id="lblNote" class="note-value text-capitalize">-</div>
+            <div>TAKEN BY</div><div>:</div><div id="lblTakenBy" class="text-capitalize">-</div>
+            <div>VEHICLE NO.</div><div>:</div><div id="lblVehicle" class="text-capitalize">-</div>
+            <div>PHONE</div><div>:</div><div id="lblPhoneF" class="text-capitalize">-</div>
+            <div>E.T.A</div><div>:</div><div id="lblEta" class="text-capitalize">-</div>
+        </div>
+
+        <!-- Certify Statement -->
+        <div class="certify-line">
+            I certify that I have examined and received the above in good condition
+        </div>
+
+        <!-- Issued By / Signature label -->
+        <div class="issued-row">
+            <div style="font-size:9pt;">Signature</div>
+            <div class="issued-right">
+                Issued By :<br>PT. Bauer Pratama Indonesia
+            </div>
+        </div>
+
+        <!-- Signature Boxes -->
+        <div class="sig-container">
+            <!-- Driver -->
+            <div class="sig-box">
+                <div class="sig-sign-area dashed">................</div>
+                <div class="sig-label">Driver</div>
+            </div>
+            <!-- Receiver -->
+            <div class="sig-box">
+                <div class="sig-sign-area dashed">................</div>
+                <div class="sig-label">Receiver</div>
+            </div>
+            <!-- Foreman: underlined name -->
+            <div class="sig-box">
+                <div class="sig-sign-area named" id="sigForeman"></div>
+                <div class="sig-label">Foreman</div>
+            </div>
+            <!-- WOC: underlined name -->
+            <div class="sig-box" style="max-width:90px;">
+                <div class="sig-sign-area named" id="sigWoc"></div>
+                <div class="sig-label">WOC</div>
+            </div>
+            <!-- Store Keeper -->
+            <div class="sig-box">
+                <div class="sig-sign-area dashed">..........................</div>
+                <div class="sig-label">Store Keeper</div>
+            </div>
+        </div>
+
+        <div class="doc-ref">BPI-QR-WS-009 Rev.00</div>
+
+    </div><!-- /page-a4 -->
+
+    <script>
+        const API_URL = 'http://localhost:3000/api';
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const id = urlParams.get('id');
+            if (id) {
+                fetchSuratJalan(id);
+            } else {
+                alert('ID Surat Jalan tidak ditemukan!');
+            }
+        });
+
+        function fetchSuratJalan(id) {
+            fetch(`${API_URL}/surat-jalan/${id}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.error) { alert(data.error); return; }
+
+                    if (data.status !== 'APPROVED') {
+                        const btnCetak = document.getElementById('btnCetak');
+                        if (btnCetak) {
+                            btnCetak.disabled = true;
+                            btnCetak.innerHTML = '<i class="bi bi-info-circle me-2"></i> Belum di-Approve';
+                            btnCetak.classList.replace('btn-primary', 'btn-secondary');
+                        }
+                    }
+
+                    // Format date
+                    const dateObj = new Date(data.tanggal);
+                    const formattedDate = dateObj.toLocaleDateString('en-GB', {
+                        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+                    });
+
+                    document.getElementById('lblDate').innerText   = formattedDate;
+                    document.getElementById('lblDest').innerText   = data.tujuan       || '-';
+                    document.getElementById('lblAttn').innerText   = data.attn         || '-';
+                    document.getElementById('lblPhoneH').innerText = data.phone_header || '-';
+                    document.getElementById('lblNoSj').innerText   = data.no_surat_jalan;
+
+                    document.getElementById('lblNote').innerText    = data.note         || '-';
+                    document.getElementById('lblTakenBy').innerText = data.taken_by     || '-';
+                    document.getElementById('lblVehicle').innerText = data.vehicle_no   || '-';
+                    document.getElementById('lblPhoneF').innerText  = data.phone_footer || '-';
+                    document.getElementById('lblEta').innerText = data.eta
+                        ? new Date(data.eta).toLocaleDateString('id-ID', { year:'numeric', month:'long', day:'numeric' })
+                        : '-';
+
+                    // Foreman / WOC — fill name into underline box
+                    if (data.foreman) document.getElementById('sigForeman').innerText = data.foreman;
+                    if (data.woc)     document.getElementById('sigWoc').innerText     = data.woc;
+
+                    // Populate items
+                    const tbody = document.getElementById('printItemsLine');
+                    tbody.innerHTML = '';
+
+                    if (data.items && data.items.length > 0) {
+                        let rowNum = 1;
+                        let insideGroup = false;
+
+                        data.items.forEach(item => {
+                            const tr = document.createElement('tr');
+
+                            if (item.type === 'group_title') {
+                                tr.innerHTML = `
+                                    <td class="text-center">${rowNum++}</td>
+                                    <td></td>
+                                    <td colspan="4" class="text-start ps-2 fw-bold">${item.group_title_text}</td>
+                                `;
+                                insideGroup = true;
+                            } else {
+                                const numStr   = insideGroup ? '-' : rowNum++;
+                                const descClass = insideGroup ? 'ps-4' : 'ps-2';
+                                tr.innerHTML = `
+                                    <td class="text-center">${numStr}</td>
+                                    <td class="text-center">${item.sku || '-'}</td>
+                                    <td class="text-start ${descClass}">${item.nama_barang || '-'}</td>
+                                    <td class="text-center fw-bold">${item.qty || '-'}</td>
+                                    <td class="text-center">${item.satuan || '-'}</td>
+                                    <td class="text-center">${item.remark || ''}</td>
+                                `;
+                            }
+                            tbody.appendChild(tr);
+                        });
+                    }
+
+                    // Auto-print if ?print=1
+                    const urlParams = new URLSearchParams(window.location.search);
+                    if (urlParams.get('print') === '1' && data.status === 'APPROVED') {
+                        setTimeout(() => window.print(), 600);
+                    }
+                })
+                .catch(err => {
+                    console.error('Error fetching Detail SJ:', err);
+                    alert('Gagal mengambil data Surat Jalan');
+                });
+        }
+    </script>
+</body>
+</html>

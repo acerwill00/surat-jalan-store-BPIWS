@@ -1,0 +1,16 @@
+{
+  "name": "delivery-note-app",
+  "version": "1.0.0",
+  "description": "Sistem Pembuat Surat Jalan Gudang",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "multer": "^2.1.1",
+    "sqlite3": "^5.1.7",
+    "xlsx": "^0.18.5"
+  }
+}
