@@ -197,19 +197,22 @@ app.post('/api/surat-jalan', (req, res) => {
             }
             no_surat_jalan = `${String(nextNum).padStart(3, '0')} ${suffix}`;
         } else {
-            // Manual number entered — check if it already exists
-            const checkResult = await new Promise((resolve) => {
-                db.get('SELECT id FROM surat_jalan WHERE no_surat_jalan = ?', [no_surat_jalan.trim()], (err, existing) => {
-                    resolve({ err, existing });
-                });
-            });
-            if (checkResult.err) return res.status(500).json({ error: checkResult.err.message });
-            if (checkResult.existing) {
-                return res.status(400).json({ error: `No. Surat Jalan "${no_surat_jalan.trim()}" sudah ada di database. Gunakan nomor yang berbeda.` });
-            }
+            // Manual number entered — check if it already exists using callback
             no_surat_jalan = no_surat_jalan.trim();
+            db.get('SELECT id FROM surat_jalan WHERE no_surat_jalan = ?', [no_surat_jalan], (err, existing) => {
+                if (err) return res.status(500).json({ error: err.message });
+                if (existing) {
+                    return res.status(400).json({ error: `No. Surat Jalan "${no_surat_jalan}" sudah ada di database. Gunakan nomor yang berbeda.` });
+                }
+                insertSuratJalan(no_surat_jalan);
+            });
+            return; // wait for callback
         }
 
+        insertSuratJalan(no_surat_jalan);
+    });
+
+    function insertSuratJalan(no_surat_jalan) {
         db.serialize(() => {
             db.run('BEGIN TRANSACTION');
 
@@ -249,7 +252,7 @@ app.post('/api/surat-jalan', (req, res) => {
                 }
             );
         });
-    });
+    }
 });
 
 // Approval / Reject Status
