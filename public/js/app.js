@@ -1,5 +1,7 @@
 const API_URL = '/api';
 let masterBarang = [];
+let currentProjectId = null;   // tracks which project folder is open
+let currentProjectName = null;
 
 // --- AUTHENTICATION & HEADERS ---
 function getUser() {
@@ -306,10 +308,7 @@ function approveSuratJalan(id) {
         .then(res => res.json())
         .then(data => {
             if(data.error) alert(data.error);
-            else {
-                alert('Surat Jalan telah di Approve!');
-                loadRecordSuratJalan();
-            }
+            else { alert('Surat Jalan telah di Approve!'); refreshCurrentSJList(); }
         });
     }
 }
@@ -324,12 +323,323 @@ function rejectSuratJalan(id) {
         .then(res => res.json())
         .then(data => {
             if(data.error) alert(data.error);
-            else {
-                alert('Surat Jalan telah ditolak!');
-                loadRecordSuratJalan();
-            }
+            else { alert('Surat Jalan telah ditolak!'); refreshCurrentSJList(); }
         });
     }
+}
+
+function refreshCurrentSJList() {
+    if (currentProjectId !== null) {
+        loadSJByProject(currentProjectId, currentProjectName);
+    } else {
+        loadRecordSuratJalan();
+    }
+}
+
+
+// --- PROJECT MANAGEMENT (list_sj.html) ---
+
+function loadProjects() {
+    fetch(`${API_URL}/projects`, { headers: getAuthHeaders() })
+        .then(res => res.json())
+        .then(projects => renderProjectGrid(projects))
+        .catch(err => {
+            const grid = document.getElementById('projectGrid');
+            if (grid) grid.innerHTML = '<p class="text-danger">Gagal memuat project.</p>';
+        });
+}
+
+function renderProjectGrid(projects) {
+    const grid = document.getElementById('projectGrid');
+    if (!grid) return;
+    const user = getUser();
+    const isAdmin = user && user.role === 'admin';
+
+    grid.innerHTML = '';
+
+    // Render each project card
+    projects.forEach(p => {
+        const card = document.createElement('div');
+        card.className = 'project-card';
+        card.innerHTML = `
+            <i class="bi bi-folder-fill folder-icon"></i>
+            <div class="folder-info">
+                <div class="folder-name">${p.name}</div>
+                <div class="folder-count">${p.sj_count} Surat Jalan</div>
+            </div>
+            ${isAdmin ? `
+            <div class="folder-actions">
+                <button class="btn btn-sm btn-outline-warning py-0 px-2" title="Rename"
+                    onclick="event.stopPropagation(); openRenameProjectModal(${p.id}, '${p.name.replace(/'/g, "\\'")}')"
+                ><i class="bi bi-pencil"></i></button>
+                <button class="btn btn-sm btn-outline-danger py-0 px-2" title="Hapus"
+                    onclick="event.stopPropagation(); deleteProject(${p.id}, '${p.name.replace(/'/g, "\\'")}')"
+                ><i class="bi bi-trash"></i></button>
+            </div>` : ''}
+        `;
+        card.addEventListener('click', () => loadSJByProject(p.id, p.name));
+        grid.appendChild(card);
+    });
+
+    // Always append a "Tanpa Project" card at the end
+    const noProjectCard = document.createElement('div');
+    noProjectCard.className = 'project-card no-project';
+    noProjectCard.innerHTML = `
+        <i class="bi bi-folder2 folder-icon"></i>
+        <div class="folder-info">
+            <div class="folder-name">Tanpa Project</div>
+            <div class="folder-count">SJ tanpa folder</div>
+        </div>
+    `;
+    noProjectCard.addEventListener('click', () => loadSJByProject('none', 'Tanpa Project'));
+    grid.appendChild(noProjectCard);
+
+    // Show empty state if no projects
+    if (projects.length === 0) {
+        const emptyMsg = document.createElement('div');
+        emptyMsg.className = 'text-center text-muted py-4 col-span-3';
+        emptyMsg.style.gridColumn = '1 / -1';
+        emptyMsg.innerHTML = '<i class="bi bi-folder-x fs-2 d-block mb-2"></i>Belum ada folder project. Klik "Tambah Folder" untuk membuat.';
+        grid.insertBefore(emptyMsg, noProjectCard);
+    }
+}
+
+function showProjectGrid() {
+    currentProjectId = null;
+    currentProjectName = null;
+    document.getElementById('view-projects').style.display = '';
+    document.getElementById('view-sj-table').style.display = 'none';
+    document.getElementById('view-deleted').style.display = 'none';
+    loadProjects();
+}
+
+function loadSJByProject(projectId, projectName) {
+    currentProjectId = projectId;
+    currentProjectName = projectName;
+
+    document.getElementById('view-projects').style.display = 'none';
+    document.getElementById('view-sj-table').style.display = '';
+    document.getElementById('view-deleted').style.display = 'none';
+
+    document.getElementById('breadcrumbProjectName').textContent = projectName;
+
+    // Update "Buat Baru" link to pre-select this project
+    const btnBuat = document.getElementById('btnBuatBaruProject');
+    if (btnBuat) {
+        btnBuat.href = projectId === 'none' ? 'form_sj.html' : `form_sj.html?project_id=${projectId}`;
+    }
+
+    // Show/hide rename+delete buttons (hide for "Tanpa Project")
+    const user = getUser();
+    const isAdmin = user && user.role === 'admin';
+    const btnRename = document.getElementById('btnRenameProject');
+    const btnDelete = document.getElementById('btnDeleteProject');
+    if (btnRename) btnRename.style.display = (isAdmin && projectId !== 'none') ? '' : 'none';
+    if (btnDelete) btnDelete.style.display = (isAdmin && projectId !== 'none') ? '' : 'none';
+
+    // Build the API URL with filter
+    let url = `${API_URL}/surat-jalan`;
+    if (projectId === 'none') {
+        url += '?unassigned=true';
+    } else {
+        url += `?project_id=${projectId}`;
+    }
+
+    const tbody = document.getElementById('sjTableBody');
+    if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-muted"><div class="spinner-border spinner-border-sm me-2"></div>Memuat...</td></tr>';
+
+    fetch(url, { headers: getAuthHeaders() })
+        .then(res => res.json())
+        .then(data => {
+            if (!tbody) return;
+            tbody.innerHTML = '';
+            if (data.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-muted"><i class="bi bi-inbox fs-3 d-block mb-2"></i>Belum ada Surat Jalan di folder ini.</td></tr>`;
+                return;
+            }
+            data.forEach(sj => {
+                const tr = document.createElement('tr');
+                let statusBadge = '';
+                if (sj.status === 'PENDING') statusBadge = '<span class="badge bg-warning text-dark">PENDING</span>';
+                else if (sj.status === 'APPROVED') statusBadge = '<span class="badge bg-success">APPROVED</span>';
+                else statusBadge = `<span class="badge bg-danger">${sj.status}</span>`;
+
+                let aksi = `<a href="print_sj.html?id=${sj.id}" class="btn btn-sm btn-outline-info shadow-sm rounded-pill px-3 me-1 mb-1"><i class="bi bi-eye"></i> Detail</a>`;
+                if (sj.status === 'APPROVED') {
+                    aksi += `<a href="print_sj.html?id=${sj.id}&print=1" class="btn btn-sm btn-outline-dark shadow-sm rounded-pill px-3 mb-1"><i class="bi bi-printer"></i> Cetak</a>`;
+                } else if (sj.status === 'PENDING' && isAdmin) {
+                    aksi += `
+                        <button class="btn btn-sm btn-success shadow-sm rounded-pill px-3 me-1 mb-1" onclick="approveSuratJalan(${sj.id})"><i class="bi bi-check-circle"></i> Approve</button>
+                        <button class="btn btn-sm btn-danger shadow-sm rounded-pill px-3 mb-1" onclick="rejectSuratJalan(${sj.id})"><i class="bi bi-x-circle"></i> Deny</button>
+                    `;
+                }
+                if (isAdmin) {
+                    aksi += `<button class="btn btn-sm btn-outline-danger shadow-sm rounded-pill px-3 mb-1 ms-1" onclick="deleteSuratJalan(${sj.id})"><i class="bi bi-trash"></i></button>`;
+                }
+
+                tr.innerHTML = `
+                    <td class="fw-bold text-primary">${sj.no_surat_jalan}</td>
+                    <td>${sj.tanggal}</td>
+                    <td>${sj.tujuan}</td>
+                    <td><i class="bi bi-person me-1 text-muted"></i>${sj.creator || '-'}</td>
+                    <td>${statusBadge}</td>
+                    <td class="text-end">${aksi}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        })
+        .catch(err => {
+            if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-danger">Gagal memuat data.</td></tr>';
+        });
+}
+
+function deleteSuratJalan(id) {
+    if (!confirm('Yakin ingin menghapus Surat Jalan ini? Data akan tersimpan di Arsip Terhapus.')) return;
+    fetch(`${API_URL}/surat-jalan/${id}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders()
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.error) alert('Gagal: ' + data.error);
+        else refreshCurrentSJList();
+    })
+    .catch(err => alert('Kesalahan koneksi.'));
+}
+
+function showDeletedView() {
+    document.getElementById('view-projects').style.display = 'none';
+    document.getElementById('view-sj-table').style.display = 'none';
+    document.getElementById('view-deleted').style.display = '';
+
+    const tbody = document.getElementById('deletedSjTableBody');
+    if (tbody) tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-muted"><div class="spinner-border spinner-border-sm me-2"></div>Memuat...</td></tr>';
+
+    fetch(`${API_URL}/surat-jalan/deleted`, { headers: getAuthHeaders() })
+        .then(res => res.json())
+        .then(data => {
+            if (!tbody) return;
+            tbody.innerHTML = '';
+            if (data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-muted"><i class="bi bi-check-circle fs-3 d-block mb-2"></i>Belum ada Surat Jalan yang terhapus.</td></tr>';
+                return;
+            }
+            data.forEach(sj => {
+                const deletedDate = sj.deleted_at ? new Date(sj.deleted_at).toLocaleString('id-ID') : '-';
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="fw-bold text-secondary">${sj.no_surat_jalan}</td>
+                    <td>${sj.tanggal}</td>
+                    <td>${sj.tujuan}</td>
+                    <td>${sj.project_name || '<em class="text-muted">Tanpa Project</em>'}</td>
+                    <td>${sj.deleted_by_name || '-'}</td>
+                    <td><small>${deletedDate}</small></td>
+                    <td class="text-end">
+                        <a href="print_sj.html?id=${sj.id}" class="btn btn-sm btn-outline-secondary shadow-sm rounded-pill px-3">
+                            <i class="bi bi-eye"></i> Preview
+                        </a>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        })
+        .catch(() => {
+            if (tbody) tbody.innerHTML = '<tr><td colspan="7" class="text-danger text-center py-4">Gagal memuat arsip.</td></tr>';
+        });
+}
+
+// Project modal state
+let _editingProjectId = null;
+
+function openAddProjectModal() {
+    _editingProjectId = null;
+    document.getElementById('projectModalTitle').textContent = 'Tambah Folder Project';
+    document.getElementById('projectNameInput').value = '';
+    document.getElementById('projectModalError').style.display = 'none';
+    new bootstrap.Modal(document.getElementById('projectModal')).show();
+}
+
+function openRenameProjectModal(id, name) {
+    _editingProjectId = id;
+    document.getElementById('projectModalTitle').textContent = 'Rename Folder';
+    document.getElementById('projectNameInput').value = name;
+    document.getElementById('projectModalError').style.display = 'none';
+    new bootstrap.Modal(document.getElementById('projectModal')).show();
+}
+
+function saveProject() {
+    const name = document.getElementById('projectNameInput').value.trim();
+    const errEl = document.getElementById('projectModalError');
+    if (!name) { errEl.textContent = 'Nama project tidak boleh kosong.'; errEl.style.display = 'block'; return; }
+    errEl.style.display = 'none';
+
+    const isEdit = !!_editingProjectId;
+    const url = isEdit ? `${API_URL}/projects/${_editingProjectId}` : `${API_URL}/projects`;
+    const method = isEdit ? 'PUT' : 'POST';
+
+    const btn = document.getElementById('projectModalSaveBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+
+    fetch(url, { method, headers: getAuthHeaders(), body: JSON.stringify({ name }) })
+        .then(res => res.json())
+        .then(data => {
+            btn.disabled = false;
+            btn.innerHTML = 'Simpan';
+            if (data.error) {
+                errEl.textContent = data.error;
+                errEl.style.display = 'block';
+            } else {
+                bootstrap.Modal.getInstance(document.getElementById('projectModal')).hide();
+                // Update current breadcrumb if renaming
+                if (isEdit && currentProjectId == _editingProjectId) {
+                    currentProjectName = name;
+                    document.getElementById('breadcrumbProjectName').textContent = name;
+                }
+                loadProjects();
+                if (document.getElementById('view-sj-table').style.display !== 'none') {
+                    loadSJByProject(currentProjectId, currentProjectName);
+                }
+            }
+        })
+        .catch(() => { btn.disabled = false; btn.innerHTML = 'Simpan'; errEl.textContent = 'Kesalahan koneksi.'; errEl.style.display = 'block'; });
+}
+
+function deleteProject(id, name) {
+    if (!confirm(`Hapus folder "${name}"?\n\nFolder hanya dapat dihapus jika tidak ada Surat Jalan aktif di dalamnya.`)) return;
+    fetch(`${API_URL}/projects/${id}`, { method: 'DELETE', headers: getAuthHeaders() })
+        .then(res => res.json())
+        .then(data => {
+            if (data.error) alert(data.error);
+            else loadProjects();
+        })
+        .catch(() => alert('Kesalahan koneksi.'));
+}
+
+function deleteCurrentProject() {
+    if (currentProjectId && currentProjectId !== 'none') {
+        deleteProject(currentProjectId, currentProjectName);
+        if (document.getElementById('view-sj-table').style.display !== 'none') {
+            showProjectGrid();
+        }
+    }
+}
+
+function populateProjectDropdown() {
+    const sel = document.getElementById('sjProjectId');
+    if (!sel) return;
+    fetch(`${API_URL}/projects`, { headers: getAuthHeaders() })
+        .then(res => res.json())
+        .then(projects => {
+            sel.innerHTML = '<option value="">— Tanpa Project —</option>';
+            projects.forEach(p => {
+                const opt = document.createElement('option');
+                opt.value = p.id;
+                opt.textContent = p.name;
+                sel.appendChild(opt);
+            });
+        })
+        .catch(() => {});
 }
 
 
@@ -441,6 +751,7 @@ function submitSuratJalan(e) {
         eta: document.getElementById('sjEta') ? document.getElementById('sjEta').value : '',
         foreman: document.getElementById('sjForeman') ? document.getElementById('sjForeman').value : '',
         woc: document.getElementById('sjWoc') ? document.getElementById('sjWoc').value : '',
+        project_id: document.getElementById('sjProjectId') ? (document.getElementById('sjProjectId').value || null) : null,
         items: []
     };
 

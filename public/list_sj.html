@@ -4,11 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Daftar Surat Jalan - Surat Jalan Generator</title>
-    <!-- Bootstrap 5 CDN -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Bootstrap Icons -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
-    <!-- Custom CSS -->
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -24,7 +21,6 @@
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
-                    <!-- Nav items rendered dynamically based on role -->
                     <li class="nav-item admin-only">
                         <a class="nav-link" href="index.html">Master Barang</a>
                     </li>
@@ -44,43 +40,149 @@
     </nav>
 
     <!-- Main Content -->
-    <div class="container mt-4 fade-in">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h1 class="page-title"><i class="bi bi-journal-text me-2"></i>Daftar Surat Jalan</h1>
-            <a href="form_sj.html" class="btn btn-primary shadow-sm">
-                <i class="bi bi-plus-lg me-2"></i>Buat Baru
-            </a>
+    <div class="container mt-4 pb-5 fade-in">
+
+        <!-- ═══════════════════════════════════════ -->
+        <!-- VIEW 1: PROJECT GRID                    -->
+        <!-- ═══════════════════════════════════════ -->
+        <div id="view-projects">
+            <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+                <h1 class="page-title mb-0"><i class="bi bi-journal-text me-2"></i>Daftar Surat Jalan</h1>
+                <div class="d-flex gap-2 flex-wrap">
+                    <button class="btn btn-outline-danger btn-sm shadow-sm admin-only" onclick="showDeletedView()" id="btnArsiprBtn">
+                        <i class="bi bi-archive me-1"></i>Arsip Terhapus
+                    </button>
+                    <button class="btn btn-outline-secondary btn-sm shadow-sm admin-only" onclick="openAddProjectModal()">
+                        <i class="bi bi-folder-plus me-1"></i>Tambah Folder
+                    </button>
+                    <a href="form_sj.html" class="btn btn-primary shadow-sm">
+                        <i class="bi bi-plus-lg me-2"></i>Buat Baru
+                    </a>
+                </div>
+            </div>
+
+            <div id="projectGrid" class="project-grid">
+                <div class="text-center text-muted py-5">
+                    <div class="spinner-border spinner-border-sm me-2"></div>Memuat folder project...
+                </div>
+            </div>
         </div>
 
-        <div class="card p-4 shadow-sm border-0">
-            <div class="table-responsive">
-                <table class="table table-hover align-middle">
-                    <thead>
-                        <tr>
-                            <th width="15%">No. SJ</th>
-                            <th width="15%">Tanggal</th>
-                            <th width="20%">Tujuan</th>
-                            <th width="15%">Pembuat</th>
-                            <th width="15%">Status</th>
-                            <th width="20%" class="text-end">Aksi</th>
-                        </tr>
-                    </thead>
-                    <tbody id="sjTableBody">
-                        <!-- Data populated by JS -->
-                        <tr><td colspan="6" class="text-center py-4 text-muted">Memuat data...</td></tr>
-                    </tbody>
-                </table>
+        <!-- ═══════════════════════════════════════ -->
+        <!-- VIEW 2: SJ TABLE INSIDE A PROJECT       -->
+        <!-- ═══════════════════════════════════════ -->
+        <div id="view-sj-table" style="display:none;">
+            <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+                <div>
+                    <button class="btn btn-sm btn-outline-secondary me-2" onclick="showProjectGrid()">
+                        <i class="bi bi-arrow-left me-1"></i>Kembali
+                    </button>
+                    <span class="text-muted small">Daftar Surat Jalan /</span>
+                    <span class="fw-bold ms-1" id="breadcrumbProjectName">—</span>
+                </div>
+                <div class="d-flex gap-2 flex-wrap">
+                    <button class="btn btn-sm btn-outline-warning shadow-sm admin-only" id="btnRenameProject" onclick="openRenameProjectModal()">
+                        <i class="bi bi-pencil me-1"></i>Rename
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger shadow-sm admin-only" id="btnDeleteProject" onclick="deleteCurrentProject()">
+                        <i class="bi bi-trash me-1"></i>Hapus Folder
+                    </button>
+                    <a id="btnBuatBaruProject" href="form_sj.html" class="btn btn-primary shadow-sm btn-sm">
+                        <i class="bi bi-plus-lg me-1"></i>Buat Baru
+                    </a>
+                </div>
+            </div>
+
+            <div class="card p-4 shadow-sm border-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead>
+                            <tr>
+                                <th width="15%">No. SJ</th>
+                                <th width="15%">Tanggal</th>
+                                <th width="20%">Tujuan</th>
+                                <th width="15%">Pembuat</th>
+                                <th width="15%">Status</th>
+                                <th width="20%" class="text-end">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="sjTableBody">
+                            <tr><td colspan="6" class="text-center py-4 text-muted">Memuat data...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══════════════════════════════════════ -->
+        <!-- VIEW 3: DELETED SJ ARCHIVE (admin only) -->
+        <!-- ═══════════════════════════════════════ -->
+        <div id="view-deleted" style="display:none;">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <button class="btn btn-sm btn-outline-secondary me-2" onclick="showProjectGrid()">
+                        <i class="bi bi-arrow-left me-1"></i>Kembali
+                    </button>
+                    <span class="text-muted small">Daftar Surat Jalan /</span>
+                    <span class="fw-bold ms-1 text-danger">Arsip Terhapus</span>
+                </div>
+            </div>
+            <div class="card p-4 shadow-sm border-0">
+                <div class="alert alert-warning d-flex gap-2 align-items-center mb-3">
+                    <i class="bi bi-shield-exclamation fs-5"></i>
+                    <div><strong>Arsip Audit Trail.</strong> Surat Jalan yang telah dihapus tersimpan di sini. Hanya tersedia mode Preview, tidak dapat dicetak.</div>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead>
+                            <tr>
+                                <th width="15%">No. SJ</th>
+                                <th width="15%">Tanggal</th>
+                                <th width="18%">Tujuan</th>
+                                <th width="12%">Project</th>
+                                <th width="12%">Dihapus Oleh</th>
+                                <th width="13%">Waktu Hapus</th>
+                                <th width="15%" class="text-end">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="deletedSjTableBody">
+                            <tr><td colspan="7" class="text-center py-4 text-muted">Memuat data...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- Bootstrap JS Bundle -->
+    <!-- ═══════════════════════════════════════ -->
+    <!-- MODAL: Add / Rename Project             -->
+    <!-- ═══════════════════════════════════════ -->
+    <div class="modal fade" id="projectModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title fw-bold" id="projectModalTitle">Tambah Folder Project</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body pt-3">
+                    <label class="form-label text-muted small fw-bold">Nama Project</label>
+                    <input type="text" class="form-control" id="projectNameInput" placeholder="Contoh: Project Sicincin 2026">
+                    <div id="projectModalError" class="text-danger small mt-2" style="display:none;"></div>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Batal</button>
+                    <button type="button" class="btn btn-primary" id="projectModalSaveBtn" onclick="saveProject()">Simpan</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script src="js/app.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             requireAuth();
-            loadRecordSuratJalan();
+            loadProjects();
         });
     </script>
 </body>

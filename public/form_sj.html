@@ -50,7 +50,21 @@
 
         <form id="formSuratJalan" onsubmit="submitSuratJalan(event)">
             
+            <!-- SECTION 0: PROJECT SELECTION -->
+            <div class="card p-4 mb-4 shadow-sm border-0" style="border-left: 4px solid var(--primary-color) !important;">
+                <div class="d-flex align-items-center gap-3">
+                    <i class="bi bi-folder2-open fs-4 text-primary"></i>
+                    <div class="flex-grow-1">
+                        <label class="form-label text-muted small fw-bold mb-1">SIMPAN KE PROJECT</label>
+                        <select class="form-select" id="sjProjectId">
+                            <option value="">— Tanpa Project —</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
             <!-- SECTION 1: HEADER -->
+
             <div class="card p-4 mb-4 shadow-sm border-0">
                 <h5 class="fw-bold mb-3 text-primary"><i class="bi bi-1-circle me-2"></i>Informasi Header</h5>
                 <div class="row g-3">
@@ -315,6 +329,17 @@
             requireAuth();
             document.getElementById('sjTanggal').valueAsDate = new Date();
             initSuratJalanForm();
+            populateProjectDropdown();
+            // Pre-select project from URL param (e.g. when coming from a folder)
+            const urlParams = new URLSearchParams(window.location.search);
+            const preProjectId = urlParams.get('project_id');
+            if (preProjectId) {
+                // Wait briefly for dropdown to populate, then set value
+                setTimeout(() => {
+                    const sel = document.getElementById('sjProjectId');
+                    if (sel) sel.value = preProjectId;
+                }, 600);
+            }
         });
 
         function showPreview() {

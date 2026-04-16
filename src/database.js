@@ -75,6 +75,39 @@ const db = new sqlite3.Database(dbPath, (err) => {
             )`, (err) => {
                 if (err) console.error("Error creating detail_surat_jalan:", err);
             });
+
+            // projects — folder grouping for surat jalan
+            db.run(`CREATE TABLE IF NOT EXISTS projects (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT UNIQUE NOT NULL,
+                created_at TEXT DEFAULT (datetime('now'))
+            )`, (err) => {
+                if (err) console.error("Error creating projects:", err);
+            });
+
+            // Safe migration: add new columns to surat_jalan if they don't exist
+            db.all("PRAGMA table_info(surat_jalan)", (err, cols) => {
+                if (err) return console.error("PRAGMA error:", err);
+                const colNames = cols.map(c => c.name);
+                if (!colNames.includes('project_id')) {
+                    db.run("ALTER TABLE surat_jalan ADD COLUMN project_id INTEGER REFERENCES projects(id)", (e) => {
+                        if (e) console.error("Error adding project_id:", e);
+                        else console.log("Migration: added project_id column");
+                    });
+                }
+                if (!colNames.includes('deleted_at')) {
+                    db.run("ALTER TABLE surat_jalan ADD COLUMN deleted_at TEXT", (e) => {
+                        if (e) console.error("Error adding deleted_at:", e);
+                        else console.log("Migration: added deleted_at column");
+                    });
+                }
+                if (!colNames.includes('deleted_by')) {
+                    db.run("ALTER TABLE surat_jalan ADD COLUMN deleted_by INTEGER REFERENCES users(id)", (e) => {
+                        if (e) console.error("Error adding deleted_by:", e);
+                        else console.log("Migration: added deleted_by column");
+                    });
+                }
+            });
         });
     }
 });
